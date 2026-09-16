@@ -24,6 +24,55 @@ test.describe('Game Listing and Navigation', () => {
     });
   });
 
+  test.describe('Game Filtering', () => {
+    test.beforeEach(async ({ page }) => {
+      await page.goto('/');
+      await expect(page.getByTestId('game-filters')).toBeVisible();
+    });
+
+    test('filters games by publisher', async ({ page }) => {
+      await page.getByLabel('Publisher').selectOption({ label: 'CodeForge Studios' });
+
+      await expect(page.locator('[data-testid="game-card"]:visible')).toHaveCount(6);
+      await expect(page.getByTestId('filter-results-count')).toHaveText('Showing 6 games');
+    });
+
+    test('filters games by multiple categories', async ({ page }) => {
+      await page.getByLabel('Strategy').check();
+      await page.getByLabel('Puzzle').check();
+
+      await expect(page.locator('[data-testid="game-card"]:visible')).toHaveCount(8);
+      await expect(page.getByTestId('filter-results-count')).toHaveText('Showing 8 games');
+    });
+
+    test('combines category and publisher filters', async ({ page }) => {
+      await page.getByLabel('Strategy').check();
+      await page.getByLabel('Publisher').selectOption({ label: 'CodeForge Studios' });
+
+      await expect(page.locator('[data-testid="game-card"]:visible')).toHaveCount(1);
+      await expect(page.locator('[data-testid="game-card"]:visible')).toContainText('DevOps Dominion');
+    });
+
+    test('shows a no-results state and clears filters', async ({ page }) => {
+      await page.getByTestId('publisher-filter').evaluate((select) => {
+        if (select instanceof HTMLSelectElement) {
+          const option = document.createElement('option');
+          option.value = 'missing-publisher';
+          option.textContent = 'Missing publisher';
+          select.append(option);
+          select.value = 'missing-publisher';
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      });
+
+      await expect(page.locator('[data-testid="game-card"]:visible')).toHaveCount(0);
+      await expect(page.getByTestId('filtered-empty-state')).toBeVisible();
+
+      await page.getByTestId('clear-filters').click();
+      await expect(page.locator('[data-testid="game-card"]:visible')).toHaveCount(21);
+    });
+  });
+
   test('should navigate to correct game details page when clicking on a game', async ({ page }) => {
     let gameId: string | null;
     let gameTitle: string | null;
